@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.linalg import pinv, matrix_rank
-from scipy.stats import chi2,t
+from scipy.stats import chi2,t,f
 
 class GLM:
     r"""
@@ -11,18 +11,20 @@ class GLM:
     also provides confidence intervals and hypothesis tests, which assume a Gaussian error model.
     """
 
-    def __init__(self,y,X,W):
+    def __init__(self,y,X,W=None):
         """
         Creates a new GLM with observations y, design matrix X and Covariance matrix W
         y: [n], X: [n,k], W:[n,n] - all numpy arrays
         """
         self.y = y
         self.X = X
-        self.W = W
-
         # dimensional parameters
         self.n = y.shape[0]
         self.k = X.shape[1]
+        if(W is None):
+            self.W = np.eye(self.n)
+        else:
+            self.W = W
 
         if(self.W.shape[0] != self.n or self.W.shape[1] != self.n):
             print("[ERROR] can't create GLM with wrong covariance matrix shape.")
@@ -104,5 +106,77 @@ class GLM:
         Test statistic is given by (R_H^2-R_0^2)/(R_0^2) where R_0^2 is the RSS in the unrestricted model
         while R_H^2 is the RSS in the restricted model. Under Gaussian error model, the test statistic follows
         a F-distribution and H_0 should be rejected if its value is high.
+        This methods allows to test whether or not any parameters have arbitrary values such as if beta_1 = 0
+        A: [s,k] nparray
+        xi: [s] nparray
         """
-        # TODO
+        # first, test if A @ beta = xi can be fulfilled by any beta at all
+        tol = 1e-6
+        xip = A @ pinv(A) @ xi
+        if(np.max(np.abs(xip-xi))>tol):
+            print("[ERROR] GLM cannot test a restriction that produces an empty parameter space")
+            return None
+        
+        s = xi.shape[0]
+        # make the restricted model
+        yr = np.zeros((self.n+s))
+        yr[:self.n] = self.y
+        yr[self.n:] = xi
+        Xr = np.zeros((self.n+s,self.k))
+        Xr[:self.n,:] = self.X
+        Xr[self.n:,:] = A
+        Wr = np.zeros((self.n+s,self.n+s))
+        Wr[:self.n,:self.n] = self.W
+        # fit it
+        rglm = GLM(yr,Xr,Wr)
+        # how many degrees of freedom does the additional LZF add?
+        m = matrix_rank(A @ self.cov_beta @ A.T)
+        T = self.dof/m * (rglm.rss - self.rss)/(self.rss)
+        p = 1.0 - f.cdf(T,m,self.dof)
+
+        result = {"p-value": p, "T": T, "d.o.f": self.dof, "constraints:": m}
+
+        return result
+
+    def summary(self,covariate_names=None,alpha=0.05):
+        """
+        prints all the model results nicely with confidence intervals and p-values for
+        H0: parameter #i is 0
+        covariate_names: an ordered list of names of each covariate/explanatory variable (optional)
+        alpha: confidence level for the CIs
+        """
+        if( (covariate_names is None) or len(covariate_names)!=self.k):
+            covariate_names = ["variable "+str(i) for i in range(self.k)]
+        
+        # get CIs
+        CI = self.param_individual_ci(alpha)
+
+        #get p values for H0: beta[i] = 0
+        pvals = []
+        for i in range(self.k):
+            Ak = np.zeros((1,self.k))
+            Ak[0,i] = 1.0
+            xi = np.zeros((1))
+            pvals += [self.test_linear_restriction(Ak,xi)["p-value"]]
+
+        # headline
+        print("---    General Linear Model y=Xb+e    ---------------------------------------")
+
+        # regressor estimates
+        max_buf = max(np.max([len(covariate_names[i]) for i in range(self.k)]),20)
+        print("explanatory variable"+" "*(max_buf-18) + "BLUE estimate    " + f"{(1-alpha)*100:.2f}% confidence interval   " + "p-Value   ")
+        for i in range(self.k):
+            ps = f"{self.beta[i]:.3}"
+            cs = f"[{CI[i,0]:.3f},{CI[i,1]:.3f}]"
+            vs = f"{pvals[i]:.3E}"
+            print(covariate_names[i]+" "*(max_buf+2-len(covariate_names[i])) +ps +" "*max(0,17-len(ps)) + cs + " "*max(0,29-len(cs))+ vs)
+
+        # residual error sum of squares and variance
+        ps = f"{self.sigma:.3f}"
+        CI = self.get_sigma_ci(alpha)
+        cs = f"[{CI[0]:.3f},{CI[1]:.3f}]"
+        print("Model Error Stdev."+" "*(max_buf-16) + ps + " "*max(0,17-len(ps))+cs+ " "*max(0,29-len(cs))+"  - - -")
+        #bottom
+        print("*Confidence intervals and p-values assume a Gaussian error model.")
+        print(" "*4+f"Residual Sum of Squares: {self.rss:.3F} " + 5*" " + f"  Degrees Of Freedom: {self.dof}" )
+        print("-----------------------------------------------------------------------------")

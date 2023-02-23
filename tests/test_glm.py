@@ -55,5 +55,33 @@ def test_glm_parameter_ci():
     assert count2 > 850
     assert count3 > 850
 
+def test_glm_anova():
+    # we want to test a linear constraint
+
+    # untrue linear constraint
+    n = 50
+    X = np.ones((n,2))
+    X[:,0] = np.linspace(0,5,num=n)
+    beta = np.asfarray([1.0,1.0])
+    y = X @ beta + np.random.normal(loc=0.0,scale=1.0,size=(n))
+    glm = GLM(y,X)
+    A = np.asfarray([[1.0,0.0],[0.0,0.0]])
+    xi = np.asfarray([0.0,0.0])
+    res = glm.test_linear_restriction(A,xi)
+    # we need to successfully reject the wrong constraint
+    assert res["p-value"] < 0.01
+
+    # the following constraint is correct so we should not reject it
+    n = 30
+    X = np.ones((n,2))
+    X[:,0] = np.linspace(0,5,num=n)
+    beta = np.asfarray([1.0,1.0])
+    y = np.random.normal(loc=0.0,scale=1.0,size=(n))
+    glm = GLM(y,X)
+    A = np.asfarray([[1.0,0.0],[0.0,0.0]])
+    xi = np.asfarray([0.0,0.0])
+    res = glm.test_linear_restriction(A,xi)
+    # we should not reject the constraint as it is true
+    assert res["p-value"] >= 0.01
 
 
