@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "muvapack"
+version = "0.0.1"
+authors = [
+  { name="David Ventzke", email="david.ventzke@gmail.com" },
+]
+description = "A small package for multivariate statistics"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  'numpy >= 1.21.5',
+  'scipy >= 1.7.3'
+]
+[project.optional-dependencies]
+tests = [
+  'pytest',
+]
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/NextLevelBugs/muvapack"
+"Bug Tracker" = "https://github.com/NextLevelBugs/muvapack"
