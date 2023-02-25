@@ -1,3 +1,7 @@
+"""
+A General Linear Model implementation using the BLUE and BLUP.
+"""
+
 import numpy as np
 from numpy.linalg import pinv, matrix_rank
 from scipy.stats import chi2,t,f

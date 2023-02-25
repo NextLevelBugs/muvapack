@@ -1,6 +1,11 @@
 from muvapack.glm import GLM
 import numpy as np
 
+"""
+Many of these test are stochastic in nature. They can fail, allthough with very small probabiliy
+Simply rerun if one of the test fails. If the same test fails again, there is likely an issue.
+"""
+
 def test_glm_fit():
     # do a very simple linear regression test
     y = np.linspace(0,9,num=10)
@@ -100,5 +105,4 @@ def test_glm_prediction():
             count += 1
         # we would expect count=900 on average. We expect count<850 almost never p<3*10^{-7}
     assert count >= 850
-
 
