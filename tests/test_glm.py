@@ -84,4 +84,21 @@ def test_glm_anova():
     # we should not reject the constraint as it is true
     assert res["p-value"] >= 0.01
 
+def test_glm_prediction():
+    # generate random samples and see how well the confidence interval for the prediction captures the true value
+    count = 0
+    N = 1000
+    for i in range(N):
+        y = np.random.normal(scale=1,size=30)+np.linspace(0,5,num=30)+1
+        X = np.ones((30,2))
+        X[:,0] = np.linspace(0,5,num=30)
+        W = np.eye(30)
+        glm = GLM(y,X,W)
+        # now get the CI for sigma (estimate true sigma is 2)
+        ci = glm.predict(np.asfarray([0.0,1.0]), alpha=0.1)["ci"]
+        if(ci[0] <= 1.0 <= ci[1]):
+            count += 1
+        # we would expect count=900 on average. We expect count<850 almost never p<3*10^{-7}
+    assert count >= 850
+
 

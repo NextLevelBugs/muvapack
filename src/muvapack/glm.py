@@ -51,7 +51,7 @@ class GLM:
         self.beta = self.X_ @ self.XBLUE @ self.y
         #calculate the explainted part + residual error of beta
         self.yhat = self.X @ self.beta
-        self.e = self.yhat - self.y
+        self.e = self.y - self.yhat
         # degres of freedom in the model
         self.dof = matrix_rank(self.W @ self.CX)
         # estimate the covariance prefactor and residual sum of squares
@@ -180,3 +180,24 @@ class GLM:
         print("*Confidence intervals and p-values assume a Gaussian error model.")
         print(" "*4+f"Residual Sum of Squares: {self.rss:.3F} " + 5*" " + f"  Degrees Of Freedom: {self.dof}" )
         print("-----------------------------------------------------------------------------")
+
+    def predict(self, x0, alpha = 0.05, v0=None):
+        """
+        This method used the BLUP (Best Linear Unbiased Predictor) to predict the expectation value of a new
+        observation y0 given a design vector of x0 and possible covariance v0 to all previous measurements.
+        x0: design of the measurement whose true value shall be predicted [k]
+        v0: None - no correlation with prev. observations. Otherwise v0: vector of covariance Cov[y0,y] of shape [n]
+        alpha: confidence level 1-alpha for the confidence interval for y0
+        Note: The confidence interval and predicted value for y0 contain the true expected value for y (i.e. without the error) with
+        probability 1-alpha under a Gaussian error model. Notice that they must not contain the observed value y0 with probablity y0, as
+        the observation of y0 comes with an extra model error.
+        returns: dictionary with {"y": prediction value for y0, "ci": 1-alpha confidence interval for y (tuple)}
+        """
+        if(v0 is None):
+            v0 = np.zeros(self.n)
+        # calculate the BLUP
+        y_blup = x0 @ self.beta + v0 @ pinv(self.W) @ self.e / self.var
+        # and the confidence interval width
+        c = t.ppf(1.0-alpha/2.0,df = self.dof) * np.sqrt(x0 @ self.cov_beta @ x0)
+        result = {"y": y_blup, "ci": (y_blup-c,y_blup+c)}
+        return result
