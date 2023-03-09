@@ -80,3 +80,14 @@ def hotelling(X,Y):
     return {"p-value":p, "d":np.sqrt(d2)}
 
 # TODO Bootstrap hotelling t2
+
+def wilks_likelihood(log_h1,log_h0,delta_dof):
+    """
+    Wilks theorem states, that under regularity conditions, given a likelihoodfunction l(y,theta) with parameter theta
+    the double negative log likelihood ratio of the supremum of the likelihhods over a restricted manifold theta_1 and
+    the entire space theta_0 will be chi2 distributed, where the dof are given by the difference in dimensions between theta_1 and
+    theta_0.
+    """
+    dnllr = -2*(log_h1-log_h0)
+    p = chi2.sf(dnllr,delta_dof)
+    return p
