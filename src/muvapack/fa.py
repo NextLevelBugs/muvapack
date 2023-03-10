@@ -7,7 +7,7 @@ from scipy.stats import chi2
 
 class FactorAnalysis:
 
-    def __init__(self, Y, alpha=0.05):
+    def __init__(self, Y, alpha=0.05, verbose=False):
         """
         Y: (n,k) n datapoints of dimension k
         alpha: significance level which determines the number of factors given a gaussian model
@@ -25,14 +25,33 @@ class FactorAnalysis:
         # we compute decompositions with more and more facotrs until we do not reject the hypothesis
         # that #facotrs explains the data with confidence alpha
         self.H = None
+        if(self.k < 3):
+            print("[ERROR] Factor analysis with less then 3 covariates does not work")
+        if(self.k == 3):
+            print("[WARNING] Factor analysis - with 3 covariates one can have only have 1 expl. factor")
+        
         for fac in range(1,self.k+1):
             self.fac = fac
             H,Phi = self.compute_decompostion(fac)
-            p = self.decompostion_level(H,Phi,fac)
-            if(p>alpha):
+
+            dof = int(((self.k-fac)**2-(self.k+fac))/2)
+            if(dof < 0):
+                break
+
+            if(dof == 0):
                 self.H = H
                 self.Phi = Phi
+                print("[WARNING] stopped model selection prematurely because of no available d.o.f.")
                 break
+            else:
+                p = self.decompostion_level(H,Phi,fac)
+                if(verbose):
+                    print(f"{fac} explaining factors - p: {p}")
+                if(p>alpha):
+                    self.H = H
+                    self.Phi = Phi
+                    break
+        
         if(self.H is None):
             print("[ERROR] Factor analysis - decomposition of covariance matrix failed")
 
@@ -43,9 +62,9 @@ class FactorAnalysis:
         epsilon: smallest change to stop iteration
         return (H,Phi) H: factor loadings matrix and Phi diagonal matrix with the error variances
         """
-        max_iter = 100
+        max_iter = 1000
         # decompose the covariance matrix
-        Phi = np.diagonal(self.Cov)
+        Phi = np.diag(np.diagonal(self.Cov))
         Hold = self.estimate_H_given_Phi(Phi,p)
         Hnew = Hold
         success = False
@@ -60,7 +79,7 @@ class FactorAnalysis:
                 Hold = Hnew
         
         if(not success):
-            print("[ERROR] covariance matrix decomposition did not converge. Consider increasing max iterations or tolerance")
+            print("[WARNING] covariance matrix decomposition did not converge. Consider increasing max iterations or tolerance")
         return (Hnew,Phi)
 
     def estimate_H_given_Phi(self, Phi, p):
@@ -85,3 +104,12 @@ class FactorAnalysis:
         pval = chi2.sf(dnllr, df=dof)
         return pval
 
+    def quartimax(self):
+        """
+        Rotates the loadings matrix to maximize the quartimax functional (sum of 4-th power H entries)
+        """
+        if(self.fac < 2):
+            # no need to perform rotations if there are not at least 2 factors
+            return self.H
+
+        #TODO
